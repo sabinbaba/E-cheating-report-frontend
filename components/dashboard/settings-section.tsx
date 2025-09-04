@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,10 +16,11 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 export function SettingsSection() {
   const { user } = useAuth()
+  const isAdmin = user?.role?.toLowerCase() === "admin"
+
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
 
-  // Settings state
   const [settings, setSettings] = useState({
     // Notification settings
     emailNotifications: true,
@@ -33,21 +34,27 @@ export function SettingsSection() {
     maxReportsPerDay: 50,
 
     // Profile settings
-    displayName: user?.name || "",
+    displayName: user?.fullName || "",
     email: user?.email || "",
   })
 
+  // Auto-clear messages after 3s
+  useEffect(() => {
+    if (!message) return
+    const timer = setTimeout(() => setMessage(""), 3000)
+    return () => clearTimeout(timer)
+  }, [message])
+
+  const updateSetting = (key: keyof typeof settings, value: string | boolean | number) => {
+    setSettings((prev) => ({ ...prev, [key]: value }))
+  }
+
   const handleSave = async () => {
     setIsLoading(true)
-    setMessage("")
-
     try {
-      // In a real app, this would save to backend
       localStorage.setItem("e-cheating-settings", JSON.stringify(settings))
       setMessage("Settings saved successfully!")
-
-      setTimeout(() => setMessage(""), 3000)
-    } catch (error) {
+    } catch {
       setMessage("Failed to save settings")
     } finally {
       setIsLoading(false)
@@ -55,7 +62,6 @@ export function SettingsSection() {
   }
 
   const handleExportData = () => {
-    // Export user data
     const reports = localStorage.getItem("e-cheating-reports")
     const users = localStorage.getItem("e-cheating-users")
     const notifications = localStorage.getItem("e-cheating-notifications")
@@ -78,15 +84,31 @@ export function SettingsSection() {
     URL.revokeObjectURL(url)
   }
 
+  const handleImportData = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      try {
+        const data = JSON.parse(event.target?.result as string)
+        console.log("Imported data:", data)
+        setMessage("Data imported successfully! (Check console)")
+      } catch {
+        setMessage("Failed to import data: Invalid JSON")
+      }
+    }
+    reader.readAsText(file)
+  }
+
   const handleClearData = () => {
     if (confirm("Are you sure you want to clear all data? This action cannot be undone.")) {
       localStorage.removeItem("e-cheating-reports")
       localStorage.removeItem("e-cheating-notifications")
-      if (user?.role === "admin") {
+      if (isAdmin) {
         localStorage.removeItem("e-cheating-users")
       }
       setMessage("Data cleared successfully!")
-      setTimeout(() => setMessage(""), 3000)
     }
   }
 
@@ -107,10 +129,11 @@ export function SettingsSection() {
         <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
-          {user?.role === "admin" && <TabsTrigger value="system">System</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="system">System</TabsTrigger>}
           <TabsTrigger value="data">Data</TabsTrigger>
         </TabsList>
 
+        {/* Profile Tab */}
         <TabsContent value="profile" className="space-y-4">
           <Card>
             <CardHeader>
@@ -123,7 +146,7 @@ export function SettingsSection() {
                 <Input
                   id="displayName"
                   value={settings.displayName}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, displayName: e.target.value }))}
+                  onChange={(e) => updateSetting("displayName", e.target.value)}
                 />
               </div>
 
@@ -133,24 +156,27 @@ export function SettingsSection() {
                   id="email"
                   type="email"
                   value={settings.email}
-                  onChange={(e) => setSettings((prev) => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) => updateSetting("email", e.target.value)}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label>Role</Label>
                 <div className="flex items-center gap-2">
-                  <Badge variant={user?.role === "admin" ? "default" : "secondary"}>
+                  <Badge variant={isAdmin ? "default" : "secondary"}>
                     <Shield className="h-3 w-3 mr-1" />
-                    {user?.role === "admin" ? "Administrator" : "Lecturer"}
+                    {isAdmin ? "Administrator" : "Lecturer"}
                   </Badge>
-                  <span className="text-sm text-muted-foreground">Contact an administrator to change your role</span>
+                  <span className="text-sm text-muted-foreground">
+                    Contact an administrator to change your role
+                  </span>
                 </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
+        {/* Notifications Tab */}
         <TabsContent value="notifications" className="space-y-4">
           <Card>
             <CardHeader>
@@ -158,62 +184,29 @@ export function SettingsSection() {
               <CardDescription>Choose how you want to be notified</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive notifications via email</p>
+              {[
+                { label: "Email Notifications", key: "emailNotifications", desc: "Receive notifications via email" },
+                { label: "Push Notifications", key: "pushNotifications", desc: "Receive browser push notifications" },
+                { label: "New Report Notifications", key: "reportNotifications", desc: "Get notified when new reports are submitted" },
+                { label: "Status Update Notifications", key: "statusUpdateNotifications", desc: "Get notified when report statuses change" },
+              ].map((item) => (
+                <div key={item.key} className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label>{item.label}</Label>
+                    <p className="text-sm text-muted-foreground">{item.desc}</p>
+                  </div>
+                  <Switch
+                    checked={settings[item.key as keyof typeof settings] as boolean}
+                    onCheckedChange={(checked) => updateSetting(item.key as keyof typeof settings, checked)}
+                  />
                 </div>
-                <Switch
-                  checked={settings.emailNotifications}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, emailNotifications: checked }))}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Push Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Receive browser push notifications</p>
-                </div>
-                <Switch
-                  checked={settings.pushNotifications}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, pushNotifications: checked }))}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>New Report Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Get notified when new reports are submitted</p>
-                </div>
-                <Switch
-                  checked={settings.reportNotifications}
-                  onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, reportNotifications: checked }))}
-                />
-              </div>
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label>Status Update Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Get notified when report statuses change</p>
-                </div>
-                <Switch
-                  checked={settings.statusUpdateNotifications}
-                  onCheckedChange={(checked) =>
-                    setSettings((prev) => ({ ...prev, statusUpdateNotifications: checked }))
-                  }
-                />
-              </div>
+              ))}
             </CardContent>
           </Card>
         </TabsContent>
 
-        {user?.role === "admin" && (
+        {/* System Tab (Admin only) */}
+        {isAdmin && (
           <TabsContent value="system" className="space-y-4">
             <Card>
               <CardHeader>
@@ -224,11 +217,11 @@ export function SettingsSection() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <Label>Auto-assign Reports</Label>
-                    <p className="text-sm text-muted-foreground">Automatically assign new reports to available staff</p>
+                    <p className="text-sm text-muted-foreground">Automatically assign new reports to staff</p>
                   </div>
                   <Switch
                     checked={settings.autoAssignReports}
-                    onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, autoAssignReports: checked }))}
+                    onCheckedChange={(checked) => updateSetting("autoAssignReports", checked)}
                   />
                 </div>
 
@@ -241,7 +234,7 @@ export function SettingsSection() {
                   </div>
                   <Switch
                     checked={settings.requireApproval}
-                    onCheckedChange={(checked) => setSettings((prev) => ({ ...prev, requireApproval: checked }))}
+                    onCheckedChange={(checked) => updateSetting("requireApproval", checked)}
                   />
                 </div>
 
@@ -254,7 +247,10 @@ export function SettingsSection() {
                     type="number"
                     value={settings.maxReportsPerDay}
                     onChange={(e) =>
-                      setSettings((prev) => ({ ...prev, maxReportsPerDay: Number.parseInt(e.target.value) || 50 }))
+                      updateSetting(
+                        "maxReportsPerDay",
+                        e.target.value === "" ? 0 : Number.parseInt(e.target.value),
+                      )
                     }
                   />
                   <p className="text-sm text-muted-foreground">
@@ -266,6 +262,7 @@ export function SettingsSection() {
           </TabsContent>
         )}
 
+        {/* Data Tab */}
         <TabsContent value="data" className="space-y-4">
           <Card>
             <CardHeader>
@@ -274,14 +271,27 @@ export function SettingsSection() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Button onClick={handleExportData} variant="outline" className="flex items-center gap-2 bg-transparent">
+                <Button
+                  onClick={handleExportData}
+                  variant="outline"
+                  className="flex items-center gap-2 bg-transparent"
+                >
                   <Download className="h-4 w-4" />
                   Export Data
                 </Button>
 
-                <Button variant="outline" className="flex items-center gap-2 bg-transparent">
+                <Button
+                  variant="outline"
+                  className="relative flex items-center gap-2 bg-transparent overflow-hidden"
+                >
                   <Upload className="h-4 w-4" />
                   Import Data
+                  <input
+                    type="file"
+                    accept="application/json"
+                    onChange={handleImportData}
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                  />
                 </Button>
               </div>
 

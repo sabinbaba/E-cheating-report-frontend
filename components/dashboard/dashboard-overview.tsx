@@ -25,11 +25,11 @@ useEffect(() => {
     await new Promise((resolve) => setTimeout(resolve, 500))
 
     // ✅ only admins can fetch all reports
-    if (user?.role === "admin") {
+    // if (user?.role === "ADMIN") {
       const res = await reportsService.getAllReports(pagination.page, pagination.limit)
       setReports(res.data)
       setPagination(res.pagination)
-    }
+    // }
 
     setNotifications(await notificationsService.getAllNotifications())
     setIsLoading(false)
@@ -47,10 +47,10 @@ useEffect(() => {
 
   const stats = {
     total: reports.length,
-    pending: reports.filter((r) => r.status === "pending").length,
-    underReview: reports.filter((r) => r.status === "under_review").length,
-    resolved: reports.filter((r) => r.status === "resolved").length,
-    highPriority: reports.filter((r) => r.priority === "high").length,
+    pending: reports.filter((r) => r.status.toLocaleLowerCase() === "pending").length,
+    underReview: reports.filter((r) => r.status.toLocaleLowerCase() === "under_review").length,
+    resolved: reports.filter((r) => r.status.toLocaleLowerCase() === "resolved").length,
+    highPriority: reports.filter((r) => r.priority === "HIGH").length,
   }
 
   const recentReports = reports.slice(0, 5)
@@ -72,7 +72,7 @@ useEffect(() => {
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">{stats.total || 0}</div>
             <p className="text-xs text-muted-foreground flex items-center">
               <TrendingUp className="inline h-3 w-3 mr-1" />
               +12% from last month
@@ -86,7 +86,7 @@ useEffect(() => {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-chart-2">{stats.pending}</div>
+            <div className="text-2xl font-bold text-chart-2">{stats.pending || 0}</div>
             <p className="text-xs text-muted-foreground">Awaiting action</p>
           </CardContent>
         </Card>
@@ -97,7 +97,7 @@ useEffect(() => {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-chart-1">{stats.underReview}</div>
+            <div className="text-2xl font-bold text-chart-1">{stats.underReview || 0}</div>
             <p className="text-xs text-muted-foreground">Being processed</p>
           </CardContent>
         </Card>
@@ -108,7 +108,7 @@ useEffect(() => {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-chart-3">{stats.resolved}</div>
+            <div className="text-2xl font-bold text-chart-3">{stats.resolved || 0}</div>
             <p className="text-xs text-muted-foreground">Completed cases</p>
           </CardContent>
         </Card>
@@ -136,15 +136,15 @@ useEffect(() => {
                 >
                   <div className="space-y-1 flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{report.studentName}</p>
-                    <p className="text-xs text-muted-foreground truncate">{report.course}</p>
+                    <p className="text-xs text-muted-foreground truncate">{report.courseCode}</p>
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge
                         variant={
-                          report.status === "pending"
+                          report.status === "PENDING"
                             ? "secondary"
-                            : report.status === "under_review"
+                            : report.status === "UNDER_REVIEW"
                               ? "default"
-                              : report.status === "resolved"
+                              : report.status === "RESOLVED"
                                 ? "outline"
                                 : "destructive"
                         }
@@ -154,9 +154,9 @@ useEffect(() => {
                       </Badge>
                       <Badge
                         variant={
-                          report.priority === "high"
+                          report.priority === "HIGH"
                             ? "destructive"
-                            : report.priority === "medium"
+                            : report.priority === "MEDIUM"
                               ? "default"
                               : "outline"
                         }
@@ -217,7 +217,8 @@ useEffect(() => {
           </CardContent>
         </Card>
       </div>
-
+     {
+        stats.total > 0 && (
       <Card className="transition-all duration-200 hover:shadow-md light-mode-card">
         <CardHeader>
           <CardTitle>Resolution Progress</CardTitle>
@@ -246,7 +247,9 @@ useEffect(() => {
             <Progress value={(stats.pending / stats.total) * 100} className="h-2" />
           </div>
         </CardContent>
-      </Card>
+      </Card>)
+          
+     }
     </div>
   )
 }

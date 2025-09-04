@@ -14,22 +14,31 @@ import type { CheatingReport } from "@/types/report"
 export function AnalyticsSection() {
   const [reports, setReports] = useState<CheatingReport[]>([])
 
-  useEffect(() => {
-    setReports(reportsService.getAllReports())
+    useEffect(() => {
+    const fetchReports = async () => {
+      try {
+          const response = await reportsService.getAllReports(1, 2000)
+        setReports(response.data)
+      } catch (error) {
+        console.error("Failed to fetch reports:", error)
+      }
+    }
+
+    fetchReports()
   }, [])
 
   // Calculate analytics data
   const totalReports = reports.length
-  const pendingReports = reports.filter((r) => r.status === "pending").length
-  const resolvedReports = reports.filter((r) => r.status === "resolved").length
-  const highPriorityReports = reports.filter((r) => r.priority === "high").length
+  const pendingReports = reports.filter((r) => r.status.toLowerCase().toLowerCase() === "pending").length
+  const resolvedReports = reports.filter((r) => r.status.toLowerCase().toLowerCase() === "resolved").length
+  const highPriorityReports = reports.filter((r) => r.priority === "HIGH").length
 
   // Status distribution
   const statusData = [
-    { name: "Pending", value: reports.filter((r) => r.status === "pending").length, color: "#f59e0b" },
-    { name: "Under Review", value: reports.filter((r) => r.status === "under_review").length, color: "#3b82f6" },
-    { name: "Resolved", value: reports.filter((r) => r.status === "resolved").length, color: "#10b981" },
-    { name: "Dismissed", value: reports.filter((r) => r.status === "dismissed").length, color: "#ef4444" },
+    { name: "Pending", value: reports.filter((r) => r.status.toLowerCase().toLowerCase() === "pending").length, color: "#f59e0b" },
+    { name: "Under Review", value: reports.filter((r) => r.status.toLowerCase().toLowerCase() === "under_review").length, color: "#3b82f6" },
+    { name: "Resolved", value: reports.filter((r) => r.status.toLowerCase().toLowerCase() === "resolved").length, color: "#10b981" },
+    { name: "Dismissed", value: reports.filter((r) => r.status.toLowerCase().toLowerCase() === "dismissed").length, color: "#ef4444" },
   ]
 
   // Incident type distribution
@@ -55,9 +64,9 @@ export function AnalyticsSection() {
 
   // Priority distribution
   const priorityData = [
-    { name: "High", value: reports.filter((r) => r.priority === "high").length, color: "#ef4444" },
-    { name: "Medium", value: reports.filter((r) => r.priority === "medium").length, color: "#f59e0b" },
-    { name: "Low", value: reports.filter((r) => r.priority === "low").length, color: "#10b981" },
+    { name: "High", value: reports.filter((r) => r.priority === "HIGH").length, color: "#ef4444" },
+    { name: "Medium", value: reports.filter((r) => r.priority === "MEDIUM").length, color: "#f59e0b" },
+    { name: "Low", value: reports.filter((r) => r.priority === "LOW").length, color: "#10b981" },
   ]
 
   const resolutionRate = totalReports > 0 ? Math.round((resolvedReports / totalReports) * 100) : 0

@@ -68,7 +68,7 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
         witnesses: validWitnesses,
         reportedBy: user.fullName,
         reporterEmail: user.email,
-        status: "pending" as const,
+        status: "PENDING" as const,
         submittedAt: new Date().toISOString(),
       }
 

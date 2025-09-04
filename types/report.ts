@@ -7,7 +7,10 @@ export interface ReportAttachment {
   uploadedAt: string
   file: File
 }
-
+export interface Witnesses{
+  name: string
+  registrationNumber:string
+}
 export interface CheatingReport {
   id: string
   studentName: string
@@ -20,11 +23,12 @@ export interface CheatingReport {
   description: string
   evidence?: string[]
   attachments?: ReportAttachment[]
-  status: "pending" | "under_review" | "resolved" | "dismissed"
-  priority: "low" | "medium" | "high"
+  status: "PENDING" | "UNDER_REVIEW" | "RESOLVED" | "DISMISSED"
+  priority: "LOW" | "MEDIUM" | "HIGH"
   createdAt: string
   updatedAt: string
   assignedTo?: string
+  witnesses: Witnesses[]
 }
 
 export interface Notification {

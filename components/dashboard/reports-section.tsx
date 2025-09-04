@@ -115,28 +115,28 @@ const loadReports = async () => {
 
   const getStatusBadge = (status: CheatingReport["status"]) => {
     const variants = {
-      pending: "secondary",
-      under_review: "default",
-      resolved: "outline",
-      dismissed: "destructive",
+      PENDING: "secondary",
+      UNDER_REVIEW: "default",
+      RESOLVED: "outline",
+      DISMISSED: "destructive",
     } as const
     return <Badge variant={variants[status]}>{status.replace("_", " ")}</Badge>
   }
 
   const getPriorityBadge = (priority: CheatingReport["priority"]) => {
     const variants = {
-      low: "outline",
-      medium: "default",
-      high: "destructive",
+      LOW: "outline",
+      MEDIUM: "default",
+      HIGH: "destructive",
     } as const
     return <Badge variant={variants[priority]}>{priority}</Badge>
   }
 
   const stats = {
     total: reports.length,
-    pending: reports.filter((r) => r.status === "pending").length,
-    underReview: reports.filter((r) => r.status === "under_review").length,
-    resolved: reports.filter((r) => r.status === "resolved").length,
+    pending: reports.filter((r) => r.status === "PENDING").length,
+    underReview: reports.filter((r) => r.status === "UNDER_REVIEW").length,
+    resolved: reports.filter((r) => r.status === "RESOLVED").length,
   }
 
   return (

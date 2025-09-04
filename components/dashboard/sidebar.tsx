@@ -93,11 +93,11 @@ export function Sidebar({ activeSection, onSectionChange, userRole }: SidebarPro
             >
               <Icon className="h-4 w-4" />
               <span className="flex-1 text-left">{item.label}</span>
-              {item.badge && (
+              {/* {item.badge && (
                 <Badge variant="secondary" className="ml-auto text-xs">
                   {item.badge}
                 </Badge>
-              )}
+              )} */}
             </Button>
           )
         })}
