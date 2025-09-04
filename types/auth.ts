@@ -1,8 +1,8 @@
 export interface User {
   id: string
   email: string
-  name: string
-  role: "admin" | "lecturer"
+  fullName: string
+  role: "ADMIN" | "LECTURER"
   createdAt: string
   lastLogin?: string
 }
@@ -20,7 +20,7 @@ export interface LoginCredentials {
 
 export interface CreateUserData {
   email: string
-  name: string
+  fullName: string
   password: string
-  role: "admin" | "lecturer"
+  role: "LECTURER" | "ADMIN"
 }

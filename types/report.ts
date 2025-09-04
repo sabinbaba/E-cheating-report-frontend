@@ -5,13 +5,14 @@ export interface ReportAttachment {
   size: number
   data: string // base64 encoded file data
   uploadedAt: string
+  file: File
 }
 
 export interface CheatingReport {
   id: string
   studentName: string
   studentId: string
-  course: string
+  courseCode: string
   incidentDate: string
   reportedBy: string
   reporterEmail: string

@@ -20,7 +20,7 @@ export function EditUserForm({ user, onSuccess }: EditUserFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
-    name: user.name,
+    name: user.fullName,
     email: user.email,
     role: user.role,
   })

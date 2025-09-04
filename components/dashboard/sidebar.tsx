@@ -8,7 +8,7 @@ import { LayoutDashboard, FileText, Users, Bell, Settings, Shield, GraduationCap
 interface SidebarProps {
   activeSection: string
   onSectionChange: (section: string) => void
-  userRole: "admin" | "lecturer"
+  userRole: "ADMIN" | "LECTURER"
 }
 
 const menuItems = [
@@ -16,45 +16,45 @@ const menuItems = [
     id: "dashboard",
     label: "Dashboard",
     icon: LayoutDashboard,
-    roles: ["admin", "lecturer"],
+    roles: ["ADMIN", "LECTURER"],
   },
   {
     id: "reports",
     label: "Reports",
     icon: FileText,
-    roles: ["admin", "lecturer"],
+    roles: ["ADMIN", "LECTURER"],
     badge: "3",
   },
   {
     id: "profile",
     label: "Profile",
     icon: Users,
-    roles: ["admin", "lecturer"],
+    roles: ["ADMIN", "LECTURER"],
   },
   {
     id: "analytics",
     label: "Analytics",
     icon: BarChart3,
-    roles: ["admin"],
+    roles: ["ADMIN"],
   },
   {
     id: "users",
     label: "User Management",
     icon: Users,
-    roles: ["admin"],
+    roles: ["ADMIN"],
   },
   {
     id: "notifications",
     label: "Notifications",
     icon: Bell,
-    roles: ["admin", "lecturer"],
+    roles: ["ADMIN", "LECTURER"],
     badge: "2",
   },
   {
     id: "settings",
     label: "Settings",
     icon: Settings,
-    roles: ["admin", "lecturer"],
+    roles: ["ADMIN", "LECTURER"],
   },
 ]
 
@@ -106,7 +106,7 @@ export function Sidebar({ activeSection, onSectionChange, userRole }: SidebarPro
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 p-3 bg-sidebar-primary rounded-lg transition-colors">
           <div className="bg-sidebar-accent rounded-full p-2">
-            {userRole === "admin" ? (
+            {userRole === "ADMIN" ? (
               <Shield className="h-4 w-4 text-sidebar-accent-foreground" />
             ) : (
               <GraduationCap className="h-4 w-4 text-sidebar-accent-foreground" />

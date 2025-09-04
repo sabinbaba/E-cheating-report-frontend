@@ -61,11 +61,11 @@ export function Header({ onNavigate }: HeaderProps) {
             <Button variant="ghost" className="flex items-center gap-2 transition-colors">
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-primary text-primary-foreground">
-                  {user?.name?.charAt(0) || "U"}
+                  {user?.fullName?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
               <div className="text-left hidden sm:block">
-                <p className="text-sm font-medium">{user?.name}</p>
+                <p className="text-sm font-medium">{user?.fullName}</p>
                 <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
               </div>
             </Button>

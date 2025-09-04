@@ -1,99 +1,108 @@
 import type { User, LoginCredentials, CreateUserData } from "@/types/auth"
+import { Server } from "./api"
 
 const STORAGE_KEYS = {
   USER: "e-cheating-user",
-  USERS: "e-cheating-users",
+  TOKEN: "e-cheating-token",
 } as const
+const SESSION_KEY = "auth-session";
 
-// Initialize default admin user if not exists
-const initializeDefaultUsers = () => {
-  const existingUsers = localStorage.getItem(STORAGE_KEYS.USERS)
-  if (!existingUsers) {
-    const defaultUsers: User[] = [
-      {
-        id: "1",
-        email: "admin@rp.ac.rw",
-        name: "System Administrator",
-        role: "admin",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "2",
-        email: "lecturer@rp.ac.rw",
-        name: "John Lecturer",
-        role: "lecturer",
-        createdAt: new Date().toISOString(),
-      },
-    ]
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(defaultUsers))
+interface AuthSession {
+  user: User;
+  token: string;
+  refreshToken?: string;
+  expiresAt?: string;
+}
+
+function saveSession(session: AuthSession) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+}
+
+function getSession(): AuthSession | null {
+  const saved = localStorage.getItem(SESSION_KEY);
+  if (!saved) return null;
+  try {
+    return JSON.parse(saved);
+  } catch {
+    localStorage.removeItem(SESSION_KEY);
+    return null;
   }
 }
 
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
 export const authService = {
+  // 🔑 Login via API
   login: async (credentials: LoginCredentials): Promise<User> => {
-    initializeDefaultUsers()
-
-    // Simulate API delay
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || "[]")
-    const user = users.find((u) => u.email === credentials.email)
-
-    // Simple password check (in real app, this would be hashed)
-    const validCredentials = [
-      { email: "admin@rp.ac.rw", password: "admin123" },
-      { email: "lecturer@rp.ac.rw", password: "lecturer123" },
-    ]
-
-    const isValidPassword = validCredentials.some(
-      (cred) => cred.email === credentials.email && cred.password === credentials.password,
-    )
-
-    if (!user || !isValidPassword) {
-      throw new Error("Invalid email or password")
+    if (!credentials.email || !credentials.password) {
+      throw new Error("Email and password are required")
     }
 
-    const updatedUser = { ...user, lastLogin: new Date().toISOString() }
+    const response = await Server<{
+      token: string
+      message?: string
+      user: User
+      refreshToken?: string
+    }>("/auth/login", "POST", credentials)
+
+    if (!response?.token || !response?.user) {
+      throw new Error(response?.message || "Invalid email or password")
+    }
+
+    const updatedUser = {
+      ...response.user,
+      lastLogin: new Date().toISOString(),
+    }
+
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser))
+      const session: AuthSession = {
+    user: { ...response.user, lastLogin: new Date().toISOString() },
+    token: response.token,
+    refreshToken: response?.refreshToken,
+  };
+
+  saveSession(session);
 
     return updatedUser
   },
 
+  // 🚪 Logout clears user + token
   logout: () => {
     localStorage.removeItem(STORAGE_KEYS.USER)
+    localStorage.removeItem(STORAGE_KEYS.TOKEN)
   },
 
+  // 👤 Get user from storage
   getCurrentUser: (): User | null => {
     const userStr = localStorage.getItem(STORAGE_KEYS.USER)
     return userStr ? JSON.parse(userStr) : null
   },
 
+  // 🆕 Create user via API
   createUser: async (userData: CreateUserData): Promise<User> => {
-    initializeDefaultUsers()
+    const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
+    // if (!token) throw new Error("Not authenticated")
 
-    const users: User[] = JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || "[]")
+    const response = await Server<{ user: User }>(
+      "/auth/register",
+      "POST",
+      userData,
+    )
 
-    // Check if user already exists
-    if (users.some((u) => u.email === userData.email)) {
-      throw new Error("User with this email already exists")
-    }
-
-    const newUser: User = {
-      id: Date.now().toString(),
-      email: userData.email,
-      name: userData.name,
-      role: userData.role,
-      createdAt: new Date().toISOString(),
-    }
-
-    users.push(newUser)
-    localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users))
-
-    return newUser
+    return response.user
   },
 
-  getAllUsers: (): User[] => {
-    initializeDefaultUsers()
-    return JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || "[]")
+  // 📋 Get all users via API (admin only)
+  getAllUsers: async (): Promise<User[]> => {
+    // const token = localStorage.getItem(STORAGE_KEYS.TOKEN)
+    // if (!token) throw new Error("Not authenticated")
+
+    const response = await Server<User[]>(
+      "/auth",
+      "GET",{})
+
+    return response
   },
 }

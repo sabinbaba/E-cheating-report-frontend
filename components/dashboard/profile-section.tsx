@@ -20,7 +20,7 @@ export function ProfileSection() {
 
   // Profile state
   const [profile, setProfile] = useState({
-    name: user?.name || "",
+    name: user?.fullName || "",
     email: user?.email || "",
     phone: "+250 787 160 872",
     department: "Information and Communication Technology",
@@ -68,7 +68,7 @@ export function ProfileSection() {
             <div className="flex justify-center mb-4">
               <Avatar className="h-24 w-24">
                 <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                  {user?.name?.charAt(0) || "U"}
+                  {user?.fullName?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
             </div>

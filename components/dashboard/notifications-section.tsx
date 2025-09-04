@@ -12,23 +12,47 @@ import type { Notification } from "@/types/report"
 export function NotificationsSection() {
   const [notifications, setNotifications] = useState<Notification[]>([])
 
+  // Fetch notifications on mount
   useEffect(() => {
-    setNotifications(notificationsService.getAllNotifications())
+    const fetchNotifications = async () => {
+      try {
+        const data = await notificationsService.getAllNotifications()
+        setNotifications(Array.isArray(data) ? data : [])
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error)
+        setNotifications([])
+      }
+    }
+
+    fetchNotifications()
   }, [])
 
-  const handleMarkAsRead = (id: string) => {
-    notificationsService.markAsRead(id)
-    setNotifications(notificationsService.getAllNotifications())
+  // Handlers
+  const handleMarkAsRead = async (id: string) => {
+    try {
+      await notificationsService.markAsRead(id)
+      const updated = await notificationsService.getAllNotifications()
+      setNotifications(Array.isArray(updated) ? updated : [])
+    } catch (error) {
+      console.error("Failed to mark notification as read:", error)
+    }
   }
 
-  const handleMarkAllAsRead = () => {
-    notificationsService.markAllAsRead()
-    setNotifications(notificationsService.getAllNotifications())
+  const handleMarkAllAsRead = async () => {
+    try {
+      await notificationsService.markAllAsRead()
+      const updated = await notificationsService.getAllNotifications()
+      setNotifications(Array.isArray(updated) ? updated : [])
+    } catch (error) {
+      console.error("Failed to mark all notifications as read:", error)
+    }
   }
 
+  // Derived lists
   const unreadNotifications = notifications.filter((n) => !n.isRead)
   const readNotifications = notifications.filter((n) => n.isRead)
 
+  // Icon mapper
   const getNotificationIcon = (type: Notification["type"]) => {
     switch (type) {
       case "new_report":
@@ -44,6 +68,7 @@ export function NotificationsSection() {
     }
   }
 
+  // Notification card component
   const NotificationCard = ({ notification }: { notification: Notification }) => (
     <Card className={`${!notification.isRead ? "border-blue-200 bg-blue-50/50" : ""}`}>
       <CardContent className="p-4">
@@ -56,7 +81,9 @@ export function NotificationsSection() {
             </div>
             <p className="text-sm text-muted-foreground">{notification.message}</p>
             <div className="flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">{new Date(notification.createdAt).toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">
+                {new Date(notification.createdAt).toLocaleString()}
+              </p>
               {!notification.isRead && (
                 <Button variant="ghost" size="sm" onClick={() => handleMarkAsRead(notification.id)}>
                   <CheckCircle className="h-3 w-3 mr-1" />

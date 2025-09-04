@@ -44,34 +44,41 @@ export function UsersSection() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  useEffect(() => {
-    const loadUsers = async () => {
-      setIsLoading(true)
-      await new Promise((resolve) => setTimeout(resolve, 300))
-      const allUsers = authService.getAllUsers()
+  const loadUsers = async () => {
+    setIsLoading(true)
+    try {
+      const allUsers = await authService.getAllUsers()
       setUsers(allUsers)
       setFilteredUsers(allUsers)
+      console.log({ allUsers });
+      
+    } catch (error) {
+      console.error("Failed to load users:", error)
+    } finally {
       setIsLoading(false)
     }
+  }
+
+  useEffect(() => {
     loadUsers()
   }, [])
 
   useEffect(() => {
-    if (searchTerm) {
+    if (searchTerm.trim()) {
       const filtered = users.filter(
         (user) =>
-          user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
           user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          user.role.toLowerCase().includes(searchTerm.toLowerCase()),
+          user.role.toLowerCase().includes(searchTerm.toLowerCase())
       )
       setFilteredUsers(filtered)
     } else {
       setFilteredUsers(users)
     }
-  }, [users, searchTerm])
+  }, [searchTerm, users])
 
-  const handleCreateUser = () => {
-    setUsers(authService.getAllUsers())
+  const handleCreateUser = async () => {
+    await loadUsers()
     setIsCreateDialogOpen(false)
   }
 
@@ -80,8 +87,8 @@ export function UsersSection() {
     setIsEditDialogOpen(true)
   }
 
-  const handleUpdateUser = () => {
-    setUsers(authService.getAllUsers())
+  const handleUpdateUser = async () => {
+    await loadUsers()
     setIsEditDialogOpen(false)
     setSelectedUser(null)
   }
@@ -93,10 +100,10 @@ export function UsersSection() {
   }
 
   const getRoleBadge = (role: User["role"]) => {
-    return role === "admin" ? (
+    return role === "ADMIN" ? (
       <Badge variant="default" className="flex items-center gap-1">
         <Shield className="h-3 w-3" />
-        Admin
+        ADMIN
       </Badge>
     ) : (
       <Badge variant="secondary" className="flex items-center gap-1">
@@ -108,21 +115,26 @@ export function UsersSection() {
 
   const stats = {
     total: users.length,
-    admins: users.filter((u) => u.role === "admin").length,
-    lecturers: users.filter((u) => u.role === "lecturer").length,
+    ADMINs: users.filter((u) => u.role === "ADMIN").length,
+    lecturers: users.filter((u) => u.role === "LECTURER").length,
     active: users.length,
   }
 
-  if (currentUser?.role !== "admin") {
+  if (currentUser?.role !== "ADMIN") {
     return (
       <div className="flex items-center justify-center h-64">
-        <EmptyState icon={Shield} title="Access Restricted" description="Only administrators can manage users." />
+        <EmptyState
+          icon={Shield}
+          title="Access Restricted"
+          description="Only ADMINistrators can manage users."
+        />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
+      {/* Header and Add User */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold">User Management</h2>
@@ -138,60 +150,36 @@ export function UsersSection() {
           <DialogContent className="max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New User</DialogTitle>
-              <DialogDescription>Add a new admin or lecturer to the system</DialogDescription>
+              <DialogDescription>Add a new ADMIN or lecturer to the system</DialogDescription>
             </DialogHeader>
             <CreateUserForm onSuccess={handleCreateUser} />
           </DialogContent>
         </Dialog>
       </div>
 
+      {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Total Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <div className="text-2xl font-bold">{stats.total}</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Administrators</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <Shield className="h-4 w-4 text-blue-600" />
-              <div className="text-2xl font-bold text-blue-600">{stats.admins}</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Lecturers</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <GraduationCap className="h-4 w-4 text-green-600" />
-              <div className="text-2xl font-bold text-green-600">{stats.lecturers}</div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="transition-all duration-200 hover:shadow-md">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm">Active Users</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center gap-2">
-              <UserCheck className="h-4 w-4 text-green-600" />
-              <div className="text-2xl font-bold text-green-600">{stats.active}</div>
-            </div>
-          </CardContent>
-        </Card>
+        {[
+          { title: "Total Users", icon: Users, value: stats.total, color: "text-foreground" },
+          { title: "ADMINistrators", icon: Shield, value: stats.ADMINs, color: "text-blue-600" },
+          { title: "Lecturers", icon: GraduationCap, value: stats.lecturers, color: "text-green-600" },
+          { title: "Active Users", icon: UserCheck, value: stats.active, color: "text-green-600" },
+        ].map((stat) => (
+          <Card key={stat.title} className="transition-all duration-200 hover:shadow-md">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm">{stat.title}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center gap-2">
+                <stat.icon className={`h-4 w-4 ${stat.color}`} />
+                <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
+      {/* Search */}
       <Card>
         <CardHeader>
           <CardTitle>Search Users</CardTitle>
@@ -209,6 +197,7 @@ export function UsersSection() {
         </CardContent>
       </Card>
 
+      {/* Users Table */}
       <Card>
         <CardHeader>
           <CardTitle>Users ({filteredUsers.length})</CardTitle>
@@ -220,7 +209,11 @@ export function UsersSection() {
               <LoadingSpinner size="lg" />
             </div>
           ) : filteredUsers.length === 0 ? (
-            <EmptyState icon={Users} title="No users found" description="No users match your search criteria." />
+            <EmptyState
+              icon={Users}
+              title="No users found"
+              description="No users match your search criteria."
+            />
           ) : (
             <div className="overflow-x-auto">
               <Table>
@@ -239,7 +232,7 @@ export function UsersSection() {
                     <TableRow key={user.id} className="transition-colors hover:bg-muted/50">
                       <TableCell>
                         <div>
-                          <p className="font-medium text-sm">{user.name}</p>
+                          <p className="font-medium text-sm">{user.fullName}</p>
                           <p className="text-xs text-muted-foreground md:hidden">{user.email}</p>
                         </div>
                       </TableCell>
@@ -271,7 +264,7 @@ export function UsersSection() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Delete User</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Are you sure you want to delete {user.name}? This action cannot be undone.
+                                  Are you sure you want to delete {user.fullName}? This action cannot be undone.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -296,6 +289,7 @@ export function UsersSection() {
         </CardContent>
       </Card>
 
+      {/* Edit User Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>

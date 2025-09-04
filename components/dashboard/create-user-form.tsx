@@ -20,10 +20,10 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState<CreateUserData>({
-    name: "",
+    fullName: "",
     email: "",
     password: "",
-    role: "lecturer",
+    role: "LECTURER",
   })
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -48,8 +48,8 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Full Name *</Label>
-        <Input id="name" value={formData.name} onChange={(e) => handleInputChange("name", e.target.value)} required />
+        <Label htmlFor="fullName">Full Name *</Label>
+        <Input id="fullName" value={formData.fullName} onChange={(e) => handleInputChange("fullName", e.target.value)} required />
       </div>
 
       <div className="space-y-2">
@@ -79,14 +79,14 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
         <Label>Role *</Label>
         <Select
           value={formData.role}
-          onValueChange={(value) => handleInputChange("role", value as "admin" | "lecturer")}
+          onValueChange={(value) => handleInputChange("role", value as "ADMIN" | "LECTURER")}
         >
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="lecturer">Lecturer</SelectItem>
-            <SelectItem value="admin">Administrator</SelectItem>
+            <SelectItem value="ADMIN">Administrator</SelectItem>
           </SelectContent>
         </Select>
       </div>

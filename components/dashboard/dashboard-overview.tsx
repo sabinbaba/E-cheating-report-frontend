@@ -17,18 +17,25 @@ export function DashboardOverview() {
   const [reports, setReports] = useState<CheatingReport[]>([])
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 })
 
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
-      // Simulate loading delay
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      setReports(reportsService.getAllReports())
-      setNotifications(notificationsService.getAllNotifications())
-      setIsLoading(false)
+useEffect(() => {
+  const loadData = async () => {
+    setIsLoading(true)
+    await new Promise((resolve) => setTimeout(resolve, 500))
+
+    // ✅ only admins can fetch all reports
+    if (user?.role === "admin") {
+      const res = await reportsService.getAllReports(pagination.page, pagination.limit)
+      setReports(res.data)
+      setPagination(res.pagination)
     }
-    loadData()
-  }, [])
+
+    setNotifications(await notificationsService.getAllNotifications())
+    setIsLoading(false)
+  }
+  loadData()
+}, [pagination.page, pagination.limit, user?.role])
 
   if (isLoading) {
     return (
@@ -52,7 +59,7 @@ export function DashboardOverview() {
   return (
     <div className="space-y-6">
       <div>
-        <h2 className="text-2xl font-bold text-balance">Welcome back, {user?.name}</h2>
+        <h2 className="text-2xl font-bold text-balance">Welcome back, {user?.fullName}</h2>
         <p className="text-muted-foreground text-balance">
           Here's an overview of academic integrity reports and system activity
         </p>
