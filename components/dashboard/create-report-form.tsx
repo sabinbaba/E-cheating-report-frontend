@@ -52,47 +52,106 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
     invigilatorSignature: "", // This would be handled differently in a real app
   })
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
-    setIsLoading(true)
+const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setError("")
+  setIsLoading(true)
 
-    try {
-      if (!user) throw new Error("User not authenticated")
+  try {
+    if (!user) throw new Error("User not authenticated")
 
-      // Filter out empty witnesses
-      const validWitnesses = witnesses.filter(w => w.name.trim() && w.registrationNumber.trim())
+    // Filter out empty witnesses
+    const validWitnesses = witnesses.filter(w => w.name.trim() && w.registrationNumber.trim())
 
-      const reportData = {
-        ...formData,
-        witnesses: validWitnesses,
-        reportedBy: user.fullName,
-        reporterEmail: user.email,
-        status: "PENDING" as const,
-        submittedAt: new Date().toISOString(),
-      }
+    const reportData = {
+      ...formData,
+      witnesses: validWitnesses,
+      reportedBy: user.fullName,
+      reporterEmail: user.email,
+      status: "PENDING" as const,
+      submittedAt: new Date().toISOString(),
+    }
 
-      // Create FormData for multipart request
-      const formPayload = new FormData()
-      formPayload.append("report", JSON.stringify(reportData))
-
-      // Fix: Properly append file attachments
+    console.log('Attachments array:', attachments)
+    console.log('Attachments length:', attachments.length)
+    
+    // Create FormData for JSON + files
+    const formPayload = new FormData()
+    
+    // Append the report data as JSON string
+    formPayload.append("report", JSON.stringify(reportData))
+    
+    // Process and append files with dynamic field names
+    if (attachments && attachments.length > 0) {
       attachments.forEach((attachment, index) => {
-        if (attachment.file instanceof File) {
-          formPayload.append(`attachment_${index}`, attachment.file, attachment.name)
+        console.log(`Processing attachment ${index}:`, {
+          name: attachment.name,
+          type: attachment.type,
+          size: attachment.size,
+          hasData: !!attachment.data
+        })
+        
+        if (attachment.data && attachment.data.startsWith('data:')) {
+          // Convert base64 data URL to File object
+          const file = dataURLtoFile(attachment.data, attachment.name || `attachment_${index}`)
+          
+          if (file && file.size > 0) {
+            const fieldName = `attachment_${index}`
+            console.log(`Appending file: ${fieldName} = ${file.name} (${file.size} bytes)`)
+            formPayload.append(fieldName, file, file.name)
+          } else {
+            console.warn(`Skipping invalid file conversion at index ${index}`)
+          }
+        } else {
+          console.warn(`Skipping attachment without valid data URL at index ${index}`)
         }
       })
-
-      // Call the service with proper parameters
-      await reportsService.createReport(formPayload, { headers: { "Content-Type": "multipart/form-data" } }, reportData)
-
-      onSuccess()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create report")
-    } finally {
-      setIsLoading(false)
+    } else {
+      console.log('No attachments to process')
     }
+
+    // Log FormData contents for debugging
+    console.log('FormData contents:')
+    for (const [key, value] of formPayload.entries()) {
+      if (value instanceof File) {
+        console.log(`${key}: File - ${value.name} (${value.size} bytes, ${value.type})`)
+      } else {
+        console.log(`${key}: ${typeof value} - ${value.toString().substring(0, 100)}...`)
+      }
+    }
+    
+    // Verify FormData has files
+    const hasFiles = Array.from(formPayload.entries()).some(([key, value]) => value instanceof File)
+    console.log('FormData has files:', hasFiles)
+
+    // Send FormData to server
+    await reportsService.createReport(formPayload)
+    
+    onSuccess()
+  } catch (err) {
+    console.error('Error creating report:', err)
+    setError(err instanceof Error ? err.message : "Failed to create report")
+  } finally {
+    setIsLoading(false)
   }
+}
+
+// Helper function to convert data URL to File object
+function dataURLtoFile(dataurl: string, filename: string): File {
+  const arr = dataurl.split(',')
+  const mimeMatch = arr[0].match(/:(.*?);/)
+  const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream'
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n)
+  }
+  
+  return new File([u8arr], filename, { type: mime })
+}
+
 
   const handleInputChange = (field: string, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }))
@@ -118,7 +177,7 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
+    <div className="max-w-5xl mx-auto space-y-8 px-4">
       <div className="text-center space-y-4">
         <div className="flex justify-center">
           <div className="bg-primary rounded-full p-4">
@@ -144,7 +203,7 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
             <CardDescription>Provide details about the student involved in the incident</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               <div className="space-y-3">
                 <Label htmlFor="studentName" className="text-sm font-medium text-foreground">
                   Student Full Name *
@@ -171,19 +230,19 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
                   required
                 />
               </div>
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="studentClass" className="text-sm font-medium text-foreground">
-                Class/Program *
-              </Label>
-              <Input
-                id="studentClass"
-                placeholder="e.g., Year 3 Computer Science"
-                value={formData.studentClass}
-                onChange={(e) => handleInputChange("studentClass", e.target.value)}
-                className="h-11 bg-input border-border/50 focus:border-ring"
-                required
-              />
+              <div className="space-y-3">
+                <Label htmlFor="studentClass" className="text-sm font-medium text-foreground">
+                  Class/Program *
+                </Label>
+                <Input
+                  id="studentClass"
+                  placeholder="e.g., Year 3 Computer Science"
+                  value={formData.studentClass}
+                  onChange={(e) => handleInputChange("studentClass", e.target.value)}
+                  className="h-11 bg-input border-border/50 focus:border-ring"
+                  required
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -198,7 +257,7 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
             <CardDescription>Specify the examination information where the incident occurred</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
               <div className="space-y-3">
                 <Label htmlFor="examName" className="text-sm font-medium text-foreground">
                   Examination Name *
@@ -225,19 +284,19 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
                   required
                 />
               </div>
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="courseCode" className="text-sm font-medium text-foreground">
-                Course/Module *
-              </Label>
-              <Input
-                id="courseCode"
-                placeholder="e.g., Database Management Systems"
-                value={formData.courseCode}
-                onChange={(e) => handleInputChange("courseCode", e.target.value)}
-                className="h-11 bg-input border-border/50 focus:border-ring"
-                required
-              />
+              <div className="space-y-3">
+                <Label htmlFor="courseCode" className="text-sm font-medium text-foreground">
+                  Course/Module *
+                </Label>
+                <Input
+                  id="courseCode"
+                  placeholder="e.g., Database Management Systems"
+                  value={formData.courseCode}
+                  onChange={(e) => handleInputChange("courseCode", e.target.value)}
+                  className="h-11 bg-input border-border/50 focus:border-ring"
+                  required
+                />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -252,7 +311,7 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
             <CardDescription>Specify the date, time, location, and nature of the academic integrity violation</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               <div className="space-y-3">
                 <Label htmlFor="incidentDate" className="text-sm font-medium text-foreground">
                   Date of Incident *
@@ -291,6 +350,34 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
                   className="h-11 bg-input border-border/50 focus:border-ring"
                   required
                 />
+              </div>
+              <div className="space-y-3">
+                <Label className="text-sm font-medium text-foreground">Priority Level</Label>
+                <Select value={formData.priority} onValueChange={(value) => handleInputChange("priority", value)}>
+                  <SelectTrigger className="h-11 bg-input border-border/50 focus:border-ring">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="LOW">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                        Low Priority
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="MEDIUM">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
+                        Medium Priority
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="HIGH">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                        High Priority
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -333,50 +420,21 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
                 </Select>
               </div>
               <div className="space-y-3">
-                <Label className="text-sm font-medium text-foreground">Priority Level</Label>
-                <Select value={formData.priority} onValueChange={(value) => handleInputChange("priority", value)}>
-                  <SelectTrigger className="h-11 bg-input border-border/50 focus:border-ring">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="LOW">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                        Low Priority
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="MEDIUM">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500"></div>
-                        Medium Priority
-                      </div>
-                    </SelectItem>
-                    <SelectItem value="HIGH">
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-red-500"></div>
-                        High Priority
-                      </div>
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="cheatingMethod" className="text-sm font-medium text-foreground">
+                  Cheating Method/Facts *
+                </Label>
+                <Input
+                  id="cheatingMethod"
+                  placeholder="e.g., Mobile phone, written notes, communication with another student"
+                  value={formData.cheatingMethod}
+                  onChange={(e) => handleInputChange("cheatingMethod", e.target.value)}
+                  className="h-11 bg-input border-border/50 focus:border-ring"
+                  required
+                />
+                <p className="text-xs text-muted-foreground">
+                  Describe what was used for cheating or the method observed
+                </p>
               </div>
-            </div>
-
-            <div className="space-y-3">
-              <Label htmlFor="cheatingMethod" className="text-sm font-medium text-foreground">
-                Cheating Method/Facts *
-              </Label>
-              <Input
-                id="cheatingMethod"
-                placeholder="e.g., Mobile phone, written notes, communication with another student"
-                value={formData.cheatingMethod}
-                onChange={(e) => handleInputChange("cheatingMethod", e.target.value)}
-                className="h-11 bg-input border-border/50 focus:border-ring"
-                required
-              />
-              <p className="text-xs text-muted-foreground">
-                Describe what was used for cheating or the method observed
-              </p>
             </div>
           </CardContent>
         </Card>
@@ -391,44 +449,46 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
             <CardDescription>Add witnesses who can provide testimony about the incident</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {witnesses.map((witness, index) => (
-              <div key={index} className="space-y-4 p-4 border border-border/50 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-medium text-sm">Witness {index + 1}</h4>
-                  {witnesses.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => removeWitness(index)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      Remove
-                    </Button>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm">Witness Name</Label>
-                    <Input
-                      placeholder="Enter witness name"
-                      value={witness.name}
-                      onChange={(e) => updateWitness(index, "name", e.target.value)}
-                      className="h-10 bg-input border-border/50 focus:border-ring"
-                    />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {witnesses.map((witness, index) => (
+                <div key={index} className="space-y-4 p-4 border border-border/50 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-medium text-sm">Witness {index + 1}</h4>
+                    {witnesses.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeWitness(index)}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        Remove
+                      </Button>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm">Registration Number</Label>
-                    <Input
-                      placeholder="Enter registration number"
-                      value={witness.registrationNumber}
-                      onChange={(e) => updateWitness(index, "registrationNumber", e.target.value)}
-                      className="h-10 bg-input border-border/50 focus:border-ring"
-                    />
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Witness Name</Label>
+                      <Input
+                        placeholder="Enter witness name"
+                        value={witness.name}
+                        onChange={(e) => updateWitness(index, "name", e.target.value)}
+                        className="h-10 bg-input border-border/50 focus:border-ring"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm">Registration Number</Label>
+                      <Input
+                        placeholder="Enter registration number"
+                        value={witness.registrationNumber}
+                        onChange={(e) => updateWitness(index, "registrationNumber", e.target.value)}
+                        className="h-10 bg-input border-border/50 focus:border-ring"
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
             
             {witnesses.length < 5 && (
               <Button
@@ -453,33 +513,35 @@ export function CreateReportForm({ onSuccess }: CreateReportFormProps) {
             <CardDescription>Details of the examination invigilator</CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="invigilatorName" className="text-sm font-medium text-foreground">
-                Invigilator Name *
-              </Label>
-              <Input
-                id="invigilatorName"
-                placeholder="Enter invigilator's full name"
-                value={formData.invigilatorName}
-                onChange={(e) => handleInputChange("invigilatorName", e.target.value)}
-                className="h-11 bg-input border-border/50 focus:border-ring"
-                required
-              />
-            </div>
-            <div className="space-y-3">
-              <Label htmlFor="invigilatorSignature" className="text-sm font-medium text-foreground">
-                Invigilator Signature/Confirmation
-              </Label>
-              <Input
-                id="invigilatorSignature"
-                placeholder="Digital signature or confirmation code"
-                value={formData.invigilatorSignature}
-                onChange={(e) => handleInputChange("invigilatorSignature", e.target.value)}
-                className="h-11 bg-input border-border/50 focus:border-ring"
-              />
-              <p className="text-xs text-muted-foreground">
-                In a digital system, this could be replaced with digital signature or confirmation
-              </p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <Label htmlFor="invigilatorName" className="text-sm font-medium text-foreground">
+                  Invigilator Name *
+                </Label>
+                <Input
+                  id="invigilatorName"
+                  placeholder="Enter invigilator's full name"
+                  value={formData.invigilatorName}
+                  onChange={(e) => handleInputChange("invigilatorName", e.target.value)}
+                  className="h-11 bg-input border-border/50 focus:border-ring"
+                  required
+                />
+              </div>
+              <div className="space-y-3">
+                <Label htmlFor="invigilatorSignature" className="text-sm font-medium text-foreground">
+                  Invigilator Signature/Confirmation
+                </Label>
+                <Input
+                  id="invigilatorSignature"
+                  placeholder="Digital signature or confirmation code"
+                  value={formData.invigilatorSignature}
+                  onChange={(e) => handleInputChange("invigilatorSignature", e.target.value)}
+                  className="h-11 bg-input border-border/50 focus:border-ring"
+                />
+                <p className="text-xs text-muted-foreground">
+                  In a digital system, this could be replaced with digital signature or confirmation
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

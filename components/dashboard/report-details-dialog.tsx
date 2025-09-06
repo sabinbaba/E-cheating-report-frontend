@@ -67,37 +67,52 @@ export function ReportDetailsDialog({
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const getFileIcon = (type: string) => (type.startsWith("image/") ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />)
-
-  const downloadAttachment = (attachment: any) => {
-    const link = document.createElement("a")
-    link.href = attachment.data
-    link.download = attachment.name
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
+  const getFileIcon = (type?: string) => {
+    // Safely handle undefined or null type
+    if (!type) return <FileText className="h-4 w-4" />
+    return type.startsWith("image/") ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />
   }
 
-  const previewAttachment = (attachment: any) => {
-    if (attachment.type.startsWith("image/")) window.open(attachment.data, "_blank")
-    else downloadAttachment(attachment)
-  }
-
- const handlePrint = async () => {
-  const response = await fetch(`${BASE_URL}/api/reports/${report.id}/pdf`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(report),
-  });
-
-  const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
+const downloadAttachment = (attachment: any) => {
+  const filename = attachment.filename || attachment.original;
   const link = document.createElement("a");
-  link.href = url;
-  link.download = `report-${report.id}.pdf`;
+  link.href = `${BASE_URL}/api/uploads/${filename}`;
+  link.download = attachment.name || attachment.original || 'attachment';
+  link.target = '_blank'; // Open in new tab for download
+  document.body.appendChild(link);
   link.click();
-  window.URL.revokeObjectURL(url);
-};
+  document.body.removeChild(link);
+}
+
+const previewAttachment = (attachment: any) => {
+  const filename = attachment.filename || attachment.original;
+  const type = attachment.type || attachment.mimetype || '';
+  const url = `${BASE_URL}/api/uploads/${filename}`;
+  
+  if (type.startsWith("image/") || filename.match(/\.(jpg|jpeg|png|gif)$/i)) {
+    window.open(url, "_blank");
+  } else if (type.includes('pdf') || filename.match(/\.pdf$/i)) {
+    window.open(url, "_blank");
+  } else {
+    downloadAttachment(attachment);
+  }
+}
+
+  const handlePrint = async () => {
+    const response = await fetch(`${BASE_URL}/api/reports/${report.id}/pdf`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(report),
+    });
+
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `report-${report.id}.pdf`;
+    link.click();
+    window.URL.revokeObjectURL(url);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -227,7 +242,7 @@ export function ReportDetailsDialog({
           </div>
 
           {/* Witnesses */}
-          {report?.witnesses?.length > 0 && (
+          {report.witnesses && report.witnesses.length > 0 && (
             <>
               <Separator />
               <div className="space-y-4">
@@ -244,20 +259,20 @@ export function ReportDetailsDialog({
           )}
 
           {/* Attachments */}
-          {report.attachments!?.length > 0 && (
+          {report.attachments && report.attachments.length > 0 && (
             <>
               <Separator />
               <div className="space-y-4">
                 <h3 className="font-semibold text-lg">Evidence Attachments</h3>
                 <div className="space-y-3">
-                  {report.attachments!.map((attachment) => (
+                  {report.attachments.map((attachment) => (
                     <div key={attachment.id} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                       <div className="flex items-center gap-3">
-                        {getFileIcon(attachment.type)}
+                        {getFileIcon(attachment.type || attachment.mimetype)}
                         <div>
-                          <p className="text-sm font-medium">{attachment.name}</p>
+                          <p className="text-sm font-medium">{attachment.name || attachment.original}</p>
                           <p className="text-xs text-muted-foreground">
-                            {formatFileSize(attachment.size)} • {new Date(attachment.uploadedAt).toLocaleDateString()}
+                            {formatFileSize(attachment.size || 0)} • {attachment.uploadedAt ? new Date(attachment.uploadedAt).toLocaleDateString() : 'Unknown date'}
                           </p>
                         </div>
                       </div>

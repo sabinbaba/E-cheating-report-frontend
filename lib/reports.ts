@@ -1,5 +1,5 @@
 import type { CheatingReport, Notification } from "@/types/report"
-import { Server } from "./api"
+import { BASE_URL, Server } from "./api"
 
 export const reportsService = {
 getAllReports: async (page = 1, limit = 10): Promise<{
@@ -18,9 +18,8 @@ getAllReports: async (page = 1, limit = 10): Promise<{
     }
   },
 
-  createReport: async (
-formPayload: FormData, p0: { headers: { "Content-Type": string } }, reportData: Omit<CheatingReport, "id" | "createdAt" | "updatedAt">  ): Promise<CheatingReport> => {
-    return await Server<CheatingReport>("/reports", "POST", reportData)
+ createReport: async (formPayload: FormData): Promise<CheatingReport> => {
+    return await Server<CheatingReport>("/reports", "POST", formPayload);
   },
 
   updateReportStatus: async (

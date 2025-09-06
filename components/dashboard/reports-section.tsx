@@ -155,12 +155,12 @@ const loadReports = async () => {
                 New Report
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-w-[95vw] w-fit max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Report</DialogTitle>
                 <DialogDescription>Submit a new academic integrity incident report</DialogDescription>
               </DialogHeader>
-              <CreateReportForm
+              <CreateReportForm 
                 onSuccess={async () => {
                   setIsCreateDialogOpen(false)
                   await loadReports()
@@ -286,7 +286,7 @@ const loadReports = async () => {
         </CardContent>
       </Card>
 
-      <ReportDetailsDialog
+      <ReportDetailsDialog 
         report={selectedReport}
         open={isDetailsDialogOpen}
         onOpenChange={setIsDetailsDialogOpen}

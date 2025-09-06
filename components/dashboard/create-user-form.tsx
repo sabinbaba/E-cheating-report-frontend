@@ -85,7 +85,7 @@ export function CreateUserForm({ onSuccess }: CreateUserFormProps) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="lecturer">Lecturer</SelectItem>
+            <SelectItem value="LECTURER">Lecturer</SelectItem>
             <SelectItem value="ADMIN">Administrator</SelectItem>
           </SelectContent>
         </Select>

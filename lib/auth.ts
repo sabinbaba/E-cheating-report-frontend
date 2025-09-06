@@ -1,5 +1,8 @@
 import type { User, LoginCredentials, CreateUserData } from "@/types/auth"
 import { Server } from "./api"
+type LoginResult =
+  | { user: User; token: string; refreshToken?: string }
+  | { error: string };
 
 const STORAGE_KEYS = {
   USER: "e-cheating-user",
@@ -35,38 +38,43 @@ function clearSession() {
 
 export const authService = {
   // 🔑 Login via API
-  login: async (credentials: LoginCredentials): Promise<User> => {
-    if (!credentials.email || !credentials.password) {
-      throw new Error("Email and password are required")
-    }
+login: async (credentials: LoginCredentials): Promise<LoginResult> => {
+  if (!credentials.email || !credentials.password) {
+    return { error: "Email and password are required" };
+  }
 
+  try {
     const response = await Server<{
-      token: string
-      message?: string
-      user: User
-      refreshToken?: string
-    }>("/auth/login", "POST", credentials)
+      token: string;
+      message?: string;
+      user: User;
+      refreshToken?: string;
+    }>("/auth/login", "POST", credentials);
 
     if (!response?.token || !response?.user) {
-      throw new Error(response?.message || "Invalid email or password")
+      throw { error: response?.message || "Invalid email or password" };
     }
 
     const updatedUser = {
       ...response.user,
       lastLogin: new Date().toISOString(),
-    }
+    };
 
-    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser))
-      const session: AuthSession = {
-    user: { ...response.user, lastLogin: new Date().toISOString() },
-    token: response.token,
-    refreshToken: response?.refreshToken,
-  };
+    localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
 
-  saveSession(session);
+    const session: AuthSession = {
+      user: updatedUser,
+      token: response.token,
+      refreshToken: response?.refreshToken,
+    };
 
-    return updatedUser
-  },
+    saveSession(session);
+
+    return { user: updatedUser, token: response.token, refreshToken: response?.refreshToken };
+  } catch (error: any) {
+    throw { error: error instanceof Error ? error.message : "Login failed" };
+  }
+},
 
   // 🚪 Logout clears user + token
   logout: () => {

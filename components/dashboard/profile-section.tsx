@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,40 +12,55 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Shield, Save, Mail, Calendar, MapPin, Phone } from "lucide-react"
 import { useAuth } from "@/hooks/use-auth"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { Server } from "@/lib/api"   // 👈 import your API wrapper
 
 export function ProfileSection() {
   const { user } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
+  const [profile, setProfile] = useState<any | null>(null)
 
-  // Profile state
-  const [profile, setProfile] = useState({
-    name: user?.fullName || "",
-    email: user?.email || "",
-    phone: "+250 787 160 872",
-    department: "Information and Communication Technology",
-    position: user?.role === "admin" ? "System Administrator" : "Lecturer",
-    joinDate: "September 2024",
-    location: "RP Ngoma College, Rwanda",
-    bio: "Dedicated to maintaining academic integrity and supporting educational excellence.",
-  })
+  // ✅ Fetch user profile on mount
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        if (!user) return
+        const data = await Server(`/users/me`, "GET")  // <-- adjust route to match your backend
+        setProfile(data)
+      } catch (err: any) {
+        console.error("Failed to fetch profile:", err.message)
+        setMessage("Could not load profile")
+      }
+    }
+    fetchProfile()
+  }, [user])
 
+  // ✅ Update profile
   const handleSave = async () => {
+    if (!user) return
     setIsLoading(true)
     setMessage("")
 
     try {
-      // In a real app, this would save to backend
-      const updatedUser = { ...user, name: profile.name, email: profile.email }
-      localStorage.setItem("e-cheating-user", JSON.stringify(updatedUser))
+      const updated = await Server(`/users/me`, "PUT", profile) // <-- adjust backend API
+      setProfile(updated)
       setMessage("Profile updated successfully!")
 
       setTimeout(() => setMessage(""), 3000)
-    } catch (error) {
-      setMessage("Failed to update profile")
+    } catch (error: any) {
+      console.error(error)
+      setMessage(error?.message || "Failed to update profile")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (!profile) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <LoadingSpinner size="lg" />
+      </div>
+    )
   }
 
   return (
@@ -68,15 +83,15 @@ export function ProfileSection() {
             <div className="flex justify-center mb-4">
               <Avatar className="h-24 w-24">
                 <AvatarFallback className="bg-primary text-primary-foreground text-2xl">
-                  {user?.fullName?.charAt(0) || "U"}
+                  {profile?.fullName?.charAt(0) || "U"}
                 </AvatarFallback>
               </Avatar>
             </div>
-            <CardTitle className="text-xl">{profile.name}</CardTitle>
+            <CardTitle className="text-xl">{profile?.fullName}</CardTitle>
             <CardDescription className="flex items-center justify-center gap-2">
-              <Badge variant={user?.role === "admin" ? "default" : "secondary"}>
+              <Badge variant={profile?.role === "ADMIN" ? "default" : "secondary"}>
                 <Shield className="h-3 w-3 mr-1" />
-                {user?.role === "admin" ? "Administrator" : "Lecturer"}
+                {profile?.role === "ADMIN" ? "Administrator" : "Lecturer"}
               </Badge>
             </CardDescription>
           </CardHeader>
@@ -84,25 +99,27 @@ export function ProfileSection() {
             <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm">
                 <Mail className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{profile.email}</span>
+                <span className="text-muted-foreground">{profile?.email}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Phone className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{profile.phone}</span>
+                <span className="text-muted-foreground">{profile?.phone}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <MapPin className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">{profile.location}</span>
+                <span className="text-muted-foreground">{profile?.location}</span>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-muted-foreground">Joined {profile.joinDate}</span>
+                <span className="text-muted-foreground">
+                  Joined {profile?.joinDate}
+                </span>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Profile Details Card */}
+        {/* Editable Profile */}
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Personal Information</CardTitle>
@@ -114,8 +131,10 @@ export function ProfileSection() {
                 <Label htmlFor="name">Full Name</Label>
                 <Input
                   id="name"
-                  value={profile.name}
-                  onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))}
+                  value={profile.fullName}
+                  onChange={(e) =>
+                    setProfile((prev: any) => ({ ...prev, fullName: e.target.value }))
+                  }
                 />
               </div>
 
@@ -125,7 +144,9 @@ export function ProfileSection() {
                   id="email"
                   type="email"
                   value={profile.email}
-                  onChange={(e) => setProfile((prev) => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) =>
+                    setProfile((prev: any) => ({ ...prev, email: e.target.value }))
+                  }
                 />
               </div>
 
@@ -133,8 +154,10 @@ export function ProfileSection() {
                 <Label htmlFor="phone">Phone Number</Label>
                 <Input
                   id="phone"
-                  value={profile.phone}
-                  onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
+                  value={profile.phone || ""}
+                  onChange={(e) =>
+                    setProfile((prev: any) => ({ ...prev, phone: e.target.value }))
+                  }
                 />
               </div>
 
@@ -142,8 +165,10 @@ export function ProfileSection() {
                 <Label htmlFor="department">Department</Label>
                 <Input
                   id="department"
-                  value={profile.department}
-                  onChange={(e) => setProfile((prev) => ({ ...prev, department: e.target.value }))}
+                  value={profile.department || ""}
+                  onChange={(e) =>
+                    setProfile((prev: any) => ({ ...prev, department: e.target.value }))
+                  }
                 />
               </div>
 
@@ -151,8 +176,10 @@ export function ProfileSection() {
                 <Label htmlFor="position">Position</Label>
                 <Input
                   id="position"
-                  value={profile.position}
-                  onChange={(e) => setProfile((prev) => ({ ...prev, position: e.target.value }))}
+                  value={profile.position || ""}
+                  onChange={(e) =>
+                    setProfile((prev: any) => ({ ...prev, position: e.target.value }))
+                  }
                 />
               </div>
 
@@ -160,8 +187,10 @@ export function ProfileSection() {
                 <Label htmlFor="location">Location</Label>
                 <Input
                   id="location"
-                  value={profile.location}
-                  onChange={(e) => setProfile((prev) => ({ ...prev, location: e.target.value }))}
+                  value={profile.location || ""}
+                  onChange={(e) =>
+                    setProfile((prev: any) => ({ ...prev, location: e.target.value }))
+                  }
                 />
               </div>
             </div>
@@ -174,8 +203,10 @@ export function ProfileSection() {
                 id="bio"
                 className="w-full min-h-[100px] px-3 py-2 border border-input bg-background rounded-md text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 resize-none"
                 placeholder="Tell us about yourself..."
-                value={profile.bio}
-                onChange={(e) => setProfile((prev) => ({ ...prev, bio: e.target.value }))}
+                value={profile.bio || ""}
+                onChange={(e) =>
+                  setProfile((prev: any) => ({ ...prev, bio: e.target.value }))
+                }
               />
             </div>
 
@@ -201,34 +232,6 @@ export function ProfileSection() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Activity Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Activity Summary</CardTitle>
-          <CardDescription>Your recent activity and statistics</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-primary">12</div>
-              <div className="text-sm text-muted-foreground">Reports Submitted</div>
-            </div>
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-primary">8</div>
-              <div className="text-sm text-muted-foreground">Reports Resolved</div>
-            </div>
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-primary">4</div>
-              <div className="text-sm text-muted-foreground">Pending Reviews</div>
-            </div>
-            <div className="text-center p-4 bg-muted/50 rounded-lg">
-              <div className="text-2xl font-bold text-primary">95%</div>
-              <div className="text-sm text-muted-foreground">Response Rate</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }

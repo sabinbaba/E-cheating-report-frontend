@@ -2,6 +2,8 @@ export interface ReportAttachment {
   id: string
   name: string
   type: string
+  mimetype: string
+  original:string
   size: number
   data: string // base64 encoded file data
   uploadedAt: string

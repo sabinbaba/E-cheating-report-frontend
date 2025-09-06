@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,9 +21,12 @@ export function LoginForm() {
     setError("")
 
     try {
-      await login({ email, password })
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
+       await login({ email, password })
+
+  location.href="/";
+    } catch (err: any) {
+      // Fallback for unexpected errors
+      setError(err?.message || "Login failed")
     }
   }
 
@@ -38,7 +40,9 @@ export function LoginForm() {
             </div>
           </div>
           <h1 className="text-3xl font-bold text-balance">E-Cheating Report System</h1>
-          <p className="text-muted-foreground text-balance">Rwanda Polytechnic - Academic Integrity Management</p>
+          <p className="text-muted-foreground text-balance">
+            Rwanda Polytechnic - Academic Integrity Management
+          </p>
         </div>
 
         <Card>
